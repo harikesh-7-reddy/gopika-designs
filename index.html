@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gopika Designs — Pochampally Handloom Sarees</title>
+    <!-- Tailwind CSS Engine -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        maroon: {
+                            50: '#fdf2f4',
+                            600: '#8b1d3d',
+                            700: '#6b122b',
+                            800: '#4a0b1c',
+                            900: '#330511',
+                            950: '#1f0209',
+                        },
+                        gold: {
+                            300: '#f3d282',
+                            400: '#e9be53',
+                            500: '#d4a326',
+                            600: '#b2841b',
+                        },
+                        cream: {
+                            100: '#fbf9f3',
+                            200: '#f5edd6',
+                            300: '#ebdcb2',
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- AlpineJS Core Engine with Persist Plugin -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        
+        .product-card {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15);
+        }
+        
+        .hero-text {
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#fbf9f3]" 
+      x-data="{ 
+          currentPage: 'home', 
+          searchQuery: '', 
+          selectedFabric: 'All', 
+          selectedColor: 'All',
+          cart: $persist([]), 
+          wishlist: $persist([]),
+          selectedProduct: null,
+          mobileMenu: false,
+          
+          // User Auth Core State Variables
+          users: $persist([{ username: 'admin', password: 'admin123', isAdmin: true }]),
+          currentUser: $persist(null),
+          authMode: 'login',
+          authUsername: '',
+          authPassword: '',
+          authError: '',
+
+          // Product Database Storage Configuration
+          allProducts: $persist([
+              { id: 'rakta-red', name: 'Rakta Red Silk Pochampally', fabric: 'Silk', color: 'Red', price: 'Price on Request', description: 'Experience authentic handloom heritage. Red base setup with geometric traditional ikat borders.', code: '8dzyxc', bg: 'from-maroon-700 to-maroon-900', image: null },
+              { id: 'hara-green', name: 'Hara Green Folk Motif Pochampally', fabric: 'Silk', color: 'Green', price: 'Price on Request', description: 'Beautiful forest green coloration woven accurately by local traditional Telangana weavers.', code: 'keljpk', bg: 'from-green-700 to-emerald-900', image: null },
+              { id: 'sindoori-maroon', name: 'Sindoori Maroon Traditional', fabric: 'Silk', color: 'Maroon', price: 'Price on Request', description: 'Deep maroon premium ceremonial wear featuring elite thread mapping matrices.', code: 'zkjqed', bg: 'from-red-800 to-maroon-950', image: null },
+              { id: 'mor-purple', name: 'Mor Purple Royal Silk Pochampally', fabric: 'Silk', color: 'Purple', price: 'Price on Request', description: 'Royal signature edition optimized with high density silk counts.', code: 'is9lk0', bg: 'from-purple-800 to-indigo-950', image: null },
+              { id: 'peela-yellow', name: 'Peela Yellow Designer Ikat', fabric: 'Cotton', color: 'Yellow', price: 'Price on Request', description: 'Lightweight summer cotton variant showcasing premium geometric layouts.', code: 'rx55za', bg: 'from-amber-500 to-yellow-600', image: null }
+          ]),
+
+          // Admin Add/Edit Form State
+          editingProduct: null,
+          newProductForm: { name: '', fabric: 'Silk', color: 'Red', price: 'Price on Request', description: '', code: '', bg: 'from-maroon-700 to-maroon-900', image: null },
+
+          handleAuth() {
+              this.authError = '';
+              if (this.authMode === 'login') {
+                  let found = this.users.find(u => u.username === this.authUsername && u.password === this.authPassword);
+                  if (found) {
+                      this.currentUser = found;
+                      this.authUsername = '';
+                      this.authPassword = '';
+                      this.currentPage = found.isAdmin ? 'admin' : 'home';
+                  } else {
+                      this.authError = 'Invalid account credentials entered.';
+                  }
+              } else {
+                  if (this.users.some(u => u.username === this.authUsername)) {
+                      this.authError = 'Username is already taken.';
+                      return;
+                  }
+                  if (!this.authUsername || !this.authPassword) {
+                      this.authError = 'All input blanks are mandatory.';
+                      return;
+                  }
+                  let newUser = { username: this.authUsername, password: this.authPassword, isAdmin: false };
+                  this.users.push(newUser);
+                  this.currentUser = newUser;
+                  this.authUsername = '';
+                  this.authPassword = '';
+                  this.currentPage = 'home';
+              }
+          },
+
+          logout() {
+              this.currentUser = null;
+              this.currentPage = 'home';
+              this.selectedProduct = null;
+          },
+
+          saveProductEdits() {
+              let idx = this.allProducts.findIndex(p => p.id === this.editingProduct.id);
+              if (idx !== -1) {
+                  this.allProducts[idx] = { ...this.editingProduct };
+                  if (this.selectedProduct && this.selectedProduct.id === this.editingProduct.id) {
+                      this.selectedProduct = { ...this.editingProduct };
+                  }
+                  this.editingProduct = null;
+              }
+          },
+
+          addNewProduct() {
+              let id = 'prod-' + Date.now();
+              let code = Math.random().toString(36).substring(2, 8);
+              this.allProducts.push({
+                  id: id,
+                  code: code,
+                  ...this.newProductForm
+              });
+              this.newProductForm = { name: '', fabric: 'Silk', color: 'Red', price: 'Price on Request', description: '', code: '', bg: 'from-maroon-700 to-maroon-900', image: null };
+          },
+
+          deleteProduct(id) {
+              if (confirm('Are you certain you want to remove this saree listing permanently?')) {
+                  this.allProducts = this.allProducts.filter(p => p.id !== id);
+                  if (this.selectedProduct && this.selectedProduct.id === id) this.selectedProduct = null;
+              }
+          },
+
+          toggleWishlist(product) {
+              if (!this.currentUser) { this.currentPage = 'auth'; return; }
+              if (this.wishlist.some(item => item.id === product.id)) {
+                  this.wishlist = this.wishlist.filter(item => item.id !== product.id);
+              } else {
+                  this.wishlist.push(product);
+              }
+          },
+
+          isInWishlist(product) {
+              return this.wishlist.some(item => item.id === product.id);
+          },
+
+          addToCart(product) {
+              if (!this.currentUser) { this.currentPage = 'auth'; return; }
+              if (!this.cart.some(item => item.id === product.id)) {
+                  this.cart.push(product);
+              }
+          },
+
+          removeFromCart(productId) {
+              this.cart = this.cart.filter(item => item.id !== productId);
+          },
+
+          // Image Upload Handler
+          handleImageUpload(event, isNew = false) {
+              const file = event.target.files[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                  const imageData = e.target.result;
+                  if (isNew) {
+                      this.newProductForm.image = imageData;
+                  } else if (this.editingProduct) {
+                      this.editingProduct.image = imageData;
+                  }
+              };
+              reader.readAsDataURL(file);
+          },
+
+          get filteredProducts() {
+              return this.allProducts.filter(p => {
+                  const matchesSearch = p.name.toLowerCase().includes(this.searchQuery.toLowerCase());
+                  const matchesFabric = this.selectedFabric === 'All' || p.fabric === this.selectedFabric;
+                  const matchesColor = this.selectedColor === 'All' || p.color === this.selectedColor;
+                  return matchesSearch && matchesFabric && matchesColor;
+              });
+          },
+
+          get whatsappMessage() {
+              let msg = 'Hello Gopika Designs, I want to inquire about booking the following sarees:\n\n';
+              this.cart.forEach((item, index) => {
+                  msg += `${index + 1}. ${item.name} (Code: ${item.code})\n`;
+              });
+              return encodeURIComponent(msg);
+          }
+      }">
+
+    <!-- Announcement Info Bar -->
+    <div class="bg-maroon-700 text-cream-100 text-center text-xs md:text-sm py-2 px-4 tracking-wide font-medium">
+        ✦ Handwoven Pochampally Sarees — Authentic Handloom Heritage ✦ Shipping Across India ✦
+    </div>
+
+    <!-- Navigation Header Matrix -->
+    <header class="bg-white border-b border-cream-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex items-center justify-between h-20 gap-4">
+                
+                <!-- Mobile Trigger -->
+                <button @click="mobileMenu = !mobileMenu" class="lg:hidden text-maroon-700 p-2 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+
+                <!-- Responsive Branding Title -->
+                <a href="#" @click.prevent="currentPage = 'home'; selectedProduct = null" class="flex-shrink-0 text-center lg:text-left">
+                    <span class="font-serif text-2xl md:text-3xl font-bold tracking-wide">
+                        <span class="text-maroon-700">Gopika</span><span class="text-gold-500"> Designs</span>
+                    </span>
+                    <span class="block text-[10px] md:text-xs text-gray-400 tracking-widest uppercase mt-0.5">Traditional Elegance</span>
+                </a>
+
+                <!-- Navbar Live Search Box Router -->
+                <div class="hidden lg:flex flex-1 max-w-md mx-8">
+                    <div class="flex w-full">
+                        <input type="text" x-model="searchQuery" @input="currentPage = 'shop'; selectedProduct = null" placeholder="Search sarees..." class="flex-1 px-4 py-2 border border-gray-300 border-r-0 rounded-l-2xl text-sm focus:border-maroon-500 focus:outline-none">
+                        <button @click="currentPage = 'shop'; selectedProduct = null" class="px-5 bg-maroon-700 text-white rounded-r-2xl hover:bg-maroon-800 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Interface Icons Context Counters & Authentication Routing Status -->
+                <div class="flex items-center gap-4 md:gap-6">
+                    <button @click="currentPage = 'wishlist'; selectedProduct = null" class="relative text-gray-600 hover:text-maroon-700 transition-colors" title="Wishlist">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
+                        <span x-show="wishlist.length > 0" x-text="wishlist.length" class="absolute -top-2 -right-2 bg-gold-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold"></span>
+                    </button>
+                    <button @click="currentPage = 'cart'; selectedProduct = null" class="relative text-gray-600 hover:text-maroon-700 transition-colors" title="Cart">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/></svg>
+                        <span x-show="cart.length > 0" x-text="cart.length" class="absolute -top-2 -right-2 bg-maroon-700 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold"></span>
+                    </button>
+
+                    <!-- Profile Session Trigger Button Panel -->
+                    <div class="border-l border-cream-300 pl-4 flex items-center gap-2">
+                        <template x-if="!currentUser">
+                            <button @click="currentPage = 'auth'" class="text-xs md:text-sm font-semibold text-maroon-700 hover:underline">Login / Register</button>
+                        </template>
+                        <template x-if="currentUser">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs bg-cream-200 text-maroon-900 px-2 py-1 rounded font-medium max-w-[80px] truncate" x-text="currentUser.username"></span>
+                                <button @click="logout()" class="text-xs text-red-600 font-medium hover:underline">Exit</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desktop Navigation Menu Link Hubs -->
+            <nav class="hidden lg:flex items-center justify-center gap-8 border-t border-cream-200 py-3">
+                <button @click="currentPage = 'home'; selectedProduct = null" :class="currentPage === 'home' ? 'text-maroon-700 border-b-2 border-maroon-700' : 'text-gray-600 hover:text-maroon-700'" class="text-sm font-medium tracking-wide pb-1 transition-all">Home</button>
+                <button @click="currentPage = 'shop'; selectedProduct = null" :class="currentPage === 'shop' ? 'text-maroon-700 border-b-2 border-maroon-700' : 'text-gray-600 hover:text-maroon-700'" class="text-sm font-medium tracking-wide pb-1 transition-all">Shop Collection</button>
+                <button @click="currentPage = 'about'; selectedProduct = null" :class="currentPage === 'about' ? 'text-maroon-700 border-b-2 border-maroon-700' : 'text-gray-600 hover:text-maroon-700'" class="text-sm font-medium tracking-wide pb-1 transition-all">Our Story</button>
+                <template x-if="currentUser?.isAdmin">
+                    <button @click="currentPage = 'admin'; selectedProduct = null" :class="currentPage === 'admin' ? 'text-maroon-700 border-b-2 border-maroon-700' : 'text-gold-600 font-bold'" class="text-sm tracking-wide pb-1 transition-all">⚙ Admin Workspace</button>
+                </template>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Dynamic Application Container Viewport -->
+    <main class="flex-1">
+
+        <!-- AUTH -->
+        <template x-if="currentPage === 'auth'">
+            <div class="max-w-md mx-auto my-16 px-4">
+                <div class="bg-white border border-cream-200 p-8 rounded-3xl shadow-sm">
+                    <div class="flex border-b border-cream-200 mb-6">
+                        <button class="flex-1 pb-3 text-center font-serif font-bold text-lg" :class="authMode === 'login' ? 'text-maroon-700 border-b-2 border-maroon-700' : 'text-gray-400'" @click="authMode = 'login'">Sign In</button>
+                        <button class="flex-1 pb-3 text-center font-serif font-bold text-lg" :class="authMode === 'signup' ? 'text-maroon-700 border-b-2 border-maroon-700' : 'text-gray-400'" @click="authMode = 'signup'">Register</button>
+                    </div>
+
+                    <form @submit.prevent="handleAuth()" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Username</label>
+                            <input type="text" x-model="authUsername" class="w-full border p-3 text-sm rounded-2xl focus:outline-maroon-700 focus:border-maroon-500" placeholder="Enter username profile name" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Password</label>
+                            <input type="password" x-model="authPassword" class="w-full border p-3 text-sm rounded-2xl focus:outline-maroon-700 focus:border-maroon-500" placeholder="••••••••" required>
+                        </div>
+
+                        <template x-if="authError">
+                            <p class="text-xs text-red-600 font-semibold" x-text="authError"></p>
+                        </template>
+
+                        <button type="submit" class="w-full bg-maroon-700 text-white py-3.5 font-medium rounded-2xl hover:bg-maroon-800 transition-all active:scale-[0.985]"> 
+                            <span x-text="authMode === 'login' ? 'Unlock Account Profile' : 'Complete Setup Registration'"></span>
+                        </button>
+                    </form>
+                    <div class="mt-4 pt-4 border-t text-center text-xs text-gray-400">
+                        <p>Demo Admin Context -> User: <span class="font-mono text-gray-700">admin</span> | Pass: <span class="font-mono text-gray-700">admin123</span></p>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- ADMIN PANEL -->
+        <template x-if="currentPage === 'admin' && currentUser?.isAdmin">
+            <div class="max-w-7xl mx-auto px-4 py-10">
+                <h2 class="font-serif text-3xl font-bold text-maroon-800 mb-2">Centralized Admin Control Studio</h2>
+                <p class="text-xs text-gray-500 uppercase tracking-widest mb-6">Modify stock parameters, color arrays, and descriptive properties safely.</p>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Add New Product -->
+                    <div class="bg-white p-6 border border-cream-200 rounded-3xl shadow-sm h-fit">
+                        <h3 class="font-serif text-lg font-bold text-gray-800 mb-4">Launch New Saree Design</h3>
+                        <form @submit.prevent="addNewProduct()" class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase">Product Name</label>
+                                <input type="text" x-model="newProductForm.name" class="w-full border p-3 text-sm rounded-2xl" placeholder="e.g. Swarna Gold Kora Silk" required>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase">Fabric</label>
+                                    <select x-model="newProductForm.fabric" class="w-full border p-3 text-sm rounded-2xl">
+                                        <option>Silk</option>
+                                        <option>Cotton</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase">Color Category</label>
+                                    <select x-model="newProductForm.color" class="w-full border p-3 text-sm rounded-2xl">
+                                        <option>Red</option>
+                                        <option>Green</option>
+                                        <option>Maroon</option>
+                                        <option>Purple</option>
+                                        <option>Yellow</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase">Pricing Label Attribute</label>
+                                <input type="text" x-model="newProductForm.price" class="w-full border p-3 text-sm rounded-2xl" placeholder="Price on Request">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Background Gradient</label>
+                                <select x-model="newProductForm.bg" class="w-full border p-3 text-sm rounded-2xl">
+                                    <option value="from-maroon-700 to-maroon-900">Rakta Red Mesh</option>
+                                    <option value="from-green-700 to-emerald-900">Hara Green Mesh</option>
+                                    <option value="from-red-800 to-maroon-950">Sindoori Maroon Mesh</option>
+                                    <option value="from-purple-800 to-indigo-950">Royal Purple Mesh</option>
+                                    <option value="from-amber-500 to-yellow-600">Peela Yellow Mesh</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Saree Image (Upload)</label>
+                                <input type="file" accept="image/*" @change="handleImageUpload($event, true)" class="w-full border p-3 text-sm rounded-2xl">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase">Item Description Block</label>
+                                <textarea x-model="newProductForm.description" class="w-full border p-3 text-sm rounded-3xl h-24" placeholder="Describe the weaving style pattern motifs..."></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 font-medium text-sm rounded-2xl">Inject Saree Into Catalog</button>
+                        </form>
+                    </div>
+
+                    <!-- Product List -->
+                    <div class="lg:col-span-2 space-y-3">
+                        <h3 class="font-serif text-lg font-bold text-gray-800 mb-4">Active Stock Catalog Master Control</h3>
+                        <template x-for="product in allProducts" :key="product.id">
+                            <div class="bg-white p-4 border border-cream-200 rounded-3xl flex gap-4 items-center justify-between">
+                                <div class="w-12 h-16 rounded-2xl flex-shrink-0" :class="`bg-gradient-to-br ${product.bg}`" 
+                                     :style="product.image ? `background-image: url(${product.image}); background-size: cover;` : ''"></div>
+                                <div class="flex-1 min-w-0">
+                                    <h4 class="font-serif font-bold text-gray-800 truncate" x-text="product.name"></h4>
+                                    <p class="text-xs text-gray-400" x-text="`Code: ${product.code} | Category: ${product.fabric} (${product.color})`"></p>
+                                    <p class="text-xs text-gray-600 italic truncate mt-1" x-text="product.description"></p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button @click="editingProduct = { ...product }" class="px-3 py-1 bg-maroon-50 text-maroon-700 font-medium text-xs rounded-2xl border border-maroon-200">Modify</button>
+                                    <button @click="deleteProduct(product.id)" class="px-3 py-1 bg-red-50 text-red-600 text-xs rounded-2xl border border-red-200">Remove</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- EDIT MODAL -->
+        <template x-if="editingProduct">
+            <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                <div class="bg-white p-6 max-w-md w-full border border-cream-300 rounded-3xl shadow-xl space-y-4">
+                    <h3 class="font-serif text-xl font-bold text-maroon-800">Edit Saree Matrix Properties</h3>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Display Title</label>
+                        <input type="text" x-model="editingProduct.name" class="w-full border p-3 text-sm rounded-2xl">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Saree Image (Upload New)</label>
+                        <input type="file" accept="image/*" @change="handleImageUpload($event)" class="w-full border p-3 text-sm rounded-2xl">
+                        <div x-if="editingProduct.image" class="mt-3">
+                            <img :src="editingProduct.image" class="w-32 h-40 object-cover rounded-2xl border mx-auto">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Price / Cost Field</label>
+                        <input type="text" x-model="editingProduct.price" class="w-full border p-3 text-sm rounded-2xl">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Image Representation Palette Gradient</label>
+                        <select x-model="editingProduct.bg" class="w-full border p-3 text-sm rounded-2xl">
+                            <option value="from-maroon-700 to-maroon-900">Rakta Red Mesh</option>
+                            <option value="from-green-700 to-emerald-900">Hara Green Mesh</option>
+                            <option value="from-red-800 to-maroon-950">Sindoori Maroon Mesh</option>
+                            <option value="from-purple-800 to-indigo-950">Royal Purple Mesh</option>
+                            <option value="from-amber-500 to-yellow-600">Peela Yellow Mesh</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Description Workspace Context</label>
+                        <textarea x-model="editingProduct.description" class="w-full border p-3 text-sm rounded-3xl h-24"></textarea>
+                    </div>
+                    <div class="flex gap-2 justify-end pt-2">
+                        <button @click="editingProduct = null" class="px-6 py-3 bg-gray-100 text-gray-600 text-sm font-medium rounded-2xl">Cancel</button>
+                        <button @click="saveProductEdits()" class="px-6 py-3 bg-maroon-700 text-white text-sm font-medium rounded-2xl hover:bg-maroon-800">Commit Structural Updates</button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- HOME PAGE -->
+        <template x-if="currentPage === 'home' && !selectedProduct">
+            <div>
+                <!-- Enhanced Hero Banner -->
+                <div class="relative h-[500px] md:h-[650px] overflow-hidden">
+                    <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('img.png');"></div>
+                    <div class="absolute inset-0 bg-gradient-to-r from-maroon-950/80 via-maroon-900/70 to-transparent"></div>
+                    <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-maroon-950/40"></div>
+                    
+                    <div class="relative h-full max-w-7xl mx-auto px-4 flex items-center z-20">
+                        <div class="max-w-2xl text-white">
+                            <p class="text-gold-400 uppercase tracking-[0.25em] text-sm font-semibold mb-3">HANDWOVEN HERITAGE</p>
+                            <h1 class="font-serif text-5xl md:text-7xl font-bold leading-none tracking-tight mb-6 hero-text">Timeless Tradition<br><span class="text-gold-400">Woven With Grace</span></h1>
+                            <p class="text-lg md:text-xl text-cream-100/95 mb-10 max-w-lg">Discover the finest collection of authentic Pochampally Handloom Sarees crafted by master artisans of Telangana.</p>
+                            <button @click="currentPage = 'shop'; selectedProduct = null" 
+                                    class="group px-8 py-4 bg-white text-maroon-800 font-medium text-lg rounded-2xl hover:bg-gold-400 hover:text-maroon-900 transition-all duration-300 flex items-center gap-3 shadow-xl">
+                                Shop Collection
+                                <span class="group-hover:translate-x-1 transition">→</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Decorative elements -->
+                    <div class="absolute bottom-12 right-12 hidden md:block">
+                        <div class="bg-white/10 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 text-sm flex items-center gap-3">
+                            <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                            <span class="text-cream-100">Crafted by 50+ Master Weavers</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Featured -->
+                <section class="py-16 max-w-7xl mx-auto px-4">
+                    <div class="text-center mb-12">
+                        <p class="text-gold-600 text-xs uppercase tracking-widest font-semibold mb-1">Curated For You</p>
+                        <h2 class="font-serif text-3xl md:text-4xl font-bold text-gray-900">Featured Masterpieces</h2>
+                        <div class="w-24 h-1 bg-gold-500 mx-auto mt-4"></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                        <template x-for="product in allProducts.slice(0, 4)" :key="product.id">
+                            <div class="product-card group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-cream-200 flex flex-col justify-between">
+                                <div class="relative overflow-hidden aspect-[3/4] bg-cream-200 cursor-pointer" @click="selectedProduct = product">
+                                    <div :class="`w-full h-full bg-gradient-to-br ${product.bg} flex items-center justify-center text-white p-6 font-serif text-center text-sm leading-tight transition-all duration-500 group-hover:scale-105`" 
+                                         :style="product.image ? `background-image: url(${product.image}); background-size: cover; background-position: center;` : ''">
+                                        <span class="drop-shadow-md" x-text="product.name"></span>
+                                    </div>
+                                    <span class="absolute top-4 left-4 bg-white/90 text-maroon-800 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full shadow">Handloom</span>
+                                    
+                                    <button @click.stop="toggleWishlist(product)" 
+                                            class="absolute top-4 right-4 p-2.5 bg-white/90 hover:bg-white rounded-2xl text-maroon-700 hover:text-red-600 transition-all duration-200 shadow">
+                                        <svg class="w-5 h-5" :fill="isInWishlist(product) ? '#e11d48' : 'none'" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
+                                    </button>
+                                </div>
+                                <div class="p-5 text-center">
+                                    <h3 class="font-serif text-base font-semibold text-gray-800 mb-1 truncate" @click="selectedProduct = product" x-text="product.name"></h3>
+                                    <p class="text-xs text-gray-500 uppercase tracking-widest mb-3" x-text="`${product.fabric} · ${product.color}`"></p>
+                                    <p class="text-xl font-bold text-maroon-800 mb-4" x-text="product.price"></p>
+                                    <div class="flex gap-2">
+                                        <button @click="addToCart(product)" 
+                                                class="flex-1 px-5 py-3 border border-maroon-700 text-maroon-700 hover:bg-maroon-700 hover:text-white text-sm font-medium rounded-2xl transition-all active:scale-95"
+                                                x-text="cart.some(item => item.id === product.id) ? '✓ Added' : 'Inquire Now'"></button>
+                                        <button @click="selectedProduct = product" 
+                                                class="px-6 py-3 bg-gradient-to-r from-cream-200 to-cream-300 hover:from-gold-100 text-gray-700 text-sm font-medium rounded-2xl transition-all">View Details</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+            </div>
+        </template>
+
+        <!-- SHOP PAGE -->
+        <template x-if="currentPage === 'shop' && !selectedProduct">
+            <div class="max-w-7xl mx-auto px-4 py-10">
+                <div class="flex flex-col lg:flex-row gap-8">
+                    <!-- Filters -->
+                    <aside class="w-full lg:w-64 flex-shrink-0 bg-white p-6 border border-cream-200 rounded-3xl shadow-sm h-fit">
+                        <h2 class="font-serif text-xl font-bold text-maroon-800 mb-6 pb-2 border-b border-cream-200">Filter Sarees</h2>
+                        <div class="mb-6">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Fabric</h4>
+                            <div class="space-y-2">
+                                <template x-for="f in ['All', 'Silk', 'Cotton']">
+                                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                        <input type="radio" name="fabric" :value="f" x-model="selectedFabric" class="text-maroon-700 focus:ring-maroon-500">
+                                        <span x-text="f"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Color Array</h4>
+                            <div class="space-y-2">
+                                <template x-for="c in ['All', 'Red', 'Green', 'Maroon', 'Purple', 'Yellow']">
+                                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                        <input type="radio" name="color" :value="c" x-model="selectedColor" class="text-maroon-700 focus:ring-maroon-500">
+                                        <span x-text="c"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+                        <button @click="selectedFabric='All'; selectedColor='All'; searchQuery=''" class="w-full mt-6 text-center text-xs text-maroon-700 hover:underline font-medium">Clear All Filters</button>
+                    </aside>
+
+                    <!-- Catalog -->
+                    <div class="flex-1">
+                        <div class="mb-6 flex justify-between items-center">
+                            <p class="text-sm text-gray-500">Available Repository Stack Count: <span class="font-bold text-gray-800" x-text="filteredProducts.length"></span></p>
+                        </div>
+
+                        <div x-show="filteredProducts.length === 0" class="text-center py-20 bg-white border border-cream-200 rounded-3xl">
+                            <p class="text-gray-500 font-medium">No sarees found matching your active filter configuration.</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 lg:grid-cols-3 gap-6">
+                            <template x-for="product in filteredProducts" :key="product.id">
+                                <div class="product-card group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-cream-200 flex flex-col justify-between">
+                                    <div class="relative overflow-hidden aspect-[3/4] bg-cream-200 cursor-pointer group" @click="selectedProduct = product">
+                                        <div :class="`w-full h-full bg-gradient-to-br ${product.bg} flex items-center justify-center text-white p-6 font-serif text-center text-sm leading-tight transition-all duration-500 group-hover:scale-105`"
+                                             :style="product.image ? `background-image: url(${product.image}); background-size: cover; background-position: center;` : ''">
+                                            <span class="drop-shadow-md" x-text="product.name"></span>
+                                        </div>
+                                        <button @click.stop="toggleWishlist(product)" 
+                                                class="absolute top-4 right-4 p-2.5 bg-white/90 hover:bg-white rounded-2xl text-maroon-700 hover:text-red-600 transition-all duration-200 shadow">
+                                            <svg class="w-5 h-5" :fill="isInWishlist(product) ? '#e11d48' : 'none'" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
+                                        </button>
+                                    </div>
+                                    <div class="p-5 text-center">
+                                        <h3 class="font-serif text-base font-semibold text-gray-800 mb-1 truncate" @click="selectedProduct = product" x-text="product.name"></h3>
+                                        <p class="text-xs text-gray-500 uppercase tracking-widest mb-3" x-text="`${product.fabric} · ${product.color}`"></p>
+                                        <p class="text-xl font-bold text-maroon-800 mb-4" x-text="product.price"></p>
+                                        <div class="flex gap-2">
+                                            <button @click="addToCart(product)" 
+                                                    class="flex-1 px-5 py-3 border border-maroon-700 text-maroon-700 hover:bg-maroon-700 hover:text-white text-sm font-medium rounded-2xl transition-all active:scale-95"
+                                                    x-text="cart.some(item => item.id === product.id) ? '✓ Added' : 'Inquire Now'"></button>
+                                            <button @click="selectedProduct = product" 
+                                                    class="px-6 py-3 bg-gradient-to-r from-cream-200 to-cream-300 hover:from-gold-100 text-gray-700 text-sm font-medium rounded-2xl transition-all">View Details</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- PRODUCT DETAIL -->
+        <template x-if="selectedProduct">
+            <div class="max-w-5xl mx-auto px-4 py-12">
+                <button @click="selectedProduct = null" class="mb-6 flex items-center gap-2 text-sm text-maroon-700 font-medium hover:underline">
+                    ← Back to Catalog Gallery
+                </button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-10 bg-white p-8 md:p-12 border border-cream-200 rounded-3xl shadow-sm relative">
+                    <template x-if="currentUser?.isAdmin">
+                        <button @click="editingProduct = { ...selectedProduct }" class="absolute top-4 right-4 bg-gold-500 hover:bg-gold-600 text-maroon-950 font-bold px-4 py-2 text-xs rounded-2xl shadow">
+                            ✏ Edit Product Info
+                        </button>
+                    </template>
+
+                    <div class="aspect-[3/4] rounded-3xl overflow-hidden shadow-2xl relative" 
+                         :class="`bg-gradient-to-br ${selectedProduct.bg}`"
+                         :style="selectedProduct.image ? `background-image: url(${selectedProduct.image}); background-size: cover; background-position: center;` : ''">
+                        <div class="absolute inset-0 flex items-center justify-center text-white p-10 font-serif text-center text-2xl leading-tight drop-shadow-2xl">
+                            <span x-text="selectedProduct.name"></span>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <span class="text-xs bg-gold-400/20 text-gold-600 font-bold px-3 py-1 rounded-2xl uppercase tracking-wider" x-text="selectedProduct.fabric"></span>
+                        <h2 class="font-serif text-2xl md:text-4xl font-bold text-gray-900 mt-3 mb-2" x-text="selectedProduct.name"></h2>
+                        <p class="text-xs text-gray-400 tracking-wider uppercase mb-4" x-text="`Identity Code: ${selectedProduct.code}`"></p>
+                        <p class="text-2xl font-bold text-maroon-700 mb-6" x-text="selectedProduct.price"></p>
+                        <p class="text-gray-600 text-sm leading-relaxed mb-6" x-text="selectedProduct.description"></p>
+
+                        <div class="border-t border-cream-200 pt-6 space-y-4">
+                            <div class="flex gap-4">
+                                <button @click="addToCart(selectedProduct)" class="flex-1 py-4 text-base font-semibold rounded-2xl transition-all active:scale-95" 
+                                        :class="cart.some(item => item.id === selectedProduct.id) ? 'bg-gray-200 text-gray-700' : 'bg-maroon-700 text-white hover:bg-maroon-800'"
+                                        x-text="cart.some(item => item.id === selectedProduct.id) ? 'Saree in Cart' : 'Add to Booking Cart'"></button>
+                                <button @click="toggleWishlist(selectedProduct)" class="px-6 border border-gray-300 rounded-2xl text-maroon-700 hover:bg-gray-50 transition-all">
+                                    <svg class="w-6 h-6" :fill="isInWishlist(selectedProduct) ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- WISHLIST -->
+        <template x-if="currentPage === 'wishlist' && !selectedProduct">
+            <div class="max-w-7xl mx-auto px-4 py-12">
+                <h2 class="font-serif text-3xl font-bold text-maroon-800 mb-2">My Saved Wishlist</h2>
+                <div class="w-16 h-1 bg-gold-500 mb-8"></div>
+
+                <div x-show="wishlist.length === 0" class="text-center py-16 bg-white border border-cream-200 rounded-3xl">
+                    <p class="text-gray-500 mb-4">Your saved configuration array is currently empty.</p>
+                    <button @click="currentPage = 'shop'" class="px-8 py-3.5 bg-maroon-700 text-white text-sm font-medium rounded-2xl">Explore Gallery Inventory</button>
+                </div>
+
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                    <template x-for="product in wishlist" :key="product.id">
+                        <div class="product-card bg-white rounded-3xl overflow-hidden border border-cream-200 flex flex-col justify-between">
+                            <div class="relative aspect-[3/4] cursor-pointer group" @click="selectedProduct = product">
+                                <div :class="`w-full h-full bg-gradient-to-br ${product.bg} flex items-center justify-center text-white p-6 font-serif text-center text-sm leading-tight transition-all duration-500 group-hover:scale-105`"
+                                     :style="product.image ? `background-image: url(${product.image}); background-size: cover; background-position: center;` : ''">
+                                    <span class="drop-shadow-md" x-text="product.name"></span>
+                                </div>
+                                <button @click.stop="toggleWishlist(product)" 
+                                        class="absolute top-4 right-4 p-2.5 bg-white/90 hover:bg-white rounded-2xl text-maroon-700 hover:text-red-600 transition-all duration-200 shadow">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
+                                </button>
+                            </div>
+                            <div class="p-5 text-center">
+                                <h3 class="font-serif font-semibold text-gray-800 mb-4 truncate" x-text="product.name"></h3>
+                                <button @click="addToCart(product)" class="w-full py-3.5 bg-maroon-700 text-white text-sm font-medium rounded-2xl" x-text="cart.some(item => item.id === product.id) ? 'In Cart' : 'Move to Cart'"></button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+
+        <!-- CART -->
+        <template x-if="currentPage === 'cart' && !selectedProduct">
+            <div class="max-w-4xl mx-auto px-4 py-12">
+                <h2 class="font-serif text-3xl font-bold text-maroon-800 mb-2">Your Booking Inquiries Cart</h2>
+                <div class="w-16 h-1 bg-gold-500 mb-8"></div>
+
+                <div x-show="cart.length === 0" class="text-center py-16 bg-white border border-cream-200 rounded-3xl">
+                    <p class="text-gray-500 mb-4">Your operational query tracking matrix is empty.</p>
+                    <button @click="currentPage = 'shop'" class="px-8 py-3.5 bg-maroon-700 text-white text-sm font-medium rounded-2xl">Browse Catalog Stock</button>
+                </div>
+
+                <div x-show="cart.length > 0" class="space-y-4">
+                    <template x-for="item in cart" :key="item.id">
+                        <div class="bg-white p-6 border border-cream-200 rounded-3xl flex items-center justify-between gap-6">
+                            <div class="w-20 h-24 flex-shrink-0 rounded-2xl" 
+                                 :class="`bg-gradient-to-br ${item.bg}`"
+                                 :style="item.image ? `background-image: url(${item.image}); background-size: cover;` : ''"></div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-serif font-semibold text-gray-900 truncate" x-text="item.name"></h4>
+                                <p class="text-xs text-gray-400" x-text="`Code Token: ${item.code} | Structure: ${item.fabric}`"></p>
+                                <p class="text-lg font-bold text-maroon-700 mt-1" x-text="item.price"></p>
+                            </div>
+                            <button @click="removeFromCart(item.id)" class="text-gray-400 hover:text-red-600 transition-colors p-3">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                        </div>
+                    </template>
+
+                    <div class="bg-white p-8 border border-cream-200 rounded-3xl mt-8">
+                        <p class="text-sm text-gray-500 mb-6 font-medium">Final purchase processing and direct sizing logistics settle instantly inside WhatsApp Chat Channels.</p>
+                        <a :href="`https://wa.me/919347569003?text=${whatsappMessage}`" target="_blank" class="inline-flex items-center gap-3 w-full justify-center px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-2xl transition-all shadow-lg">
+                            Proceed to Live Channel Inquiry Connection
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- ABOUT -->
+        <template x-if="currentPage === 'about' && !selectedProduct">
+            <div class="max-w-4xl mx-auto px-4 py-12">
+                <h2 class="font-serif text-3xl md:text-4xl font-bold text-maroon-800 mb-2">Our Handloom Legacy</h2>
+                <div class="w-16 h-1 bg-gold-500 mb-8"></div>
+                <div class="bg-white p-8 md:p-12 border border-cream-200 rounded-3xl shadow-sm space-y-8 text-gray-700 leading-relaxed text-base">
+                    <p>Welcome to <strong>Gopika Designs</strong>. Our dedicated collections showcase authentic handwoven heritage originating directly from native weaver hubs across Telangana.</p>
+                    <p>Famous for iconic geometric layout configurations, double ikat patterns, and vibrant coloring execution styles, every curated artifact involves a unique warp-and-weft dynamic mapping procedure passing across generation lineages.</p>
+                </div>
+            </div>
+        </template>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-maroon-900 text-cream-100 mt-16 border-t border-cream-200/20">
+        <div class="max-w-7xl mx-auto px-4 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div class="md:col-span-2">
+                    <span class="font-serif text-2xl font-bold">
+                        <span class="text-cream-50">Gopika</span><span class="text-gold-400"> Designs</span>
+                    </span>
+                    <p class="mt-3 text-sm text-cream-200/80 max-w-md">
+                        Discover the finest collection of authentic Pochampally Handloom Sarees crafted by master artisans of Telangana. Each saree tells a story of tradition, skill, and timeless elegance.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-serif text-md font-semibold text-gold-400 mb-3">Quick Links</h4>
+                    <ul class="space-y-2 text-sm text-cream-200/80">
+                        <li><button @click="currentPage='home'; selectedProduct=null" class="hover:text-gold-300 transition-colors">Home</button></li>
+                        <li><button @click="currentPage='shop'; selectedProduct=null" class="hover:text-gold-300 transition-colors">Shop Collection</button></li>
+                        <li><button @click="currentPage='about'; selectedProduct=null" class="hover:text-gold-300 transition-colors">Our Story</button></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-serif text-md font-semibold text-gold-400 mb-3">Connect Securely</h4>
+                    <p class="text-sm text-cream-200/80 mb-3">Book directly via WhatsApp for swift personalized alterations.</p>
+                    <a :href="`https://wa.me/919347569003?text=${whatsappMessage}`" target="_blank" class="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-all">
+                        Live Booking Chat Help
+                    </a>
+                </div>
+            </div>
+            <div class="border-t border-maroon-800 mt-12 pt-6 text-center text-xs text-cream-200/50">
+                &copy; 2026 Gopika Designs. All rights reserved.
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
